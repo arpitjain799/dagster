@@ -274,6 +274,8 @@ class GrpcServerRegistry(AbstractContextManager):
         if self.instance.code_server_settings.get("wait_for_local_processes_on_shutdown", False):
             self.wait_for_processes()
 
+        self.wait_for_processes()
+
     def wait_for_processes(self) -> None:
         # Wait for any processes created by this registry. Generally not needed outside
         # of tests, since the processes have heartbeats and will end on their own once
