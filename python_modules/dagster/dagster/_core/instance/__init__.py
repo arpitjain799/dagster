@@ -35,10 +35,6 @@ import dagster._check as check
 from dagster._annotations import public
 from dagster._core.definitions.events import AssetKey
 from dagster._core.definitions.pipeline_base import InMemoryPipeline
-from dagster._core.definitions.pipeline_definition import (
-    PipelineDefinition,
-    PipelineSubsetDefinition,
-)
 from dagster._core.errors import (
     DagsterHomeNotSetError,
     DagsterInvalidInvocationError,
@@ -67,7 +63,6 @@ from dagster._core.storage.tags import (
     RESUME_RETRY_TAG,
     ROOT_RUN_ID_TAG,
 )
-from dagster._core.utils import str_format_list
 from dagster._serdes import ConfigurableClass
 from dagster._seven import get_current_datetime_in_utc
 from dagster._utils import PrintFn, traced
@@ -93,6 +88,9 @@ IS_AIRFLOW_INGEST_PIPELINE_STR = "is_airflow_ingest_pipeline"
 
 if TYPE_CHECKING:
     from dagster._core.debug import DebugRunPayload
+    from dagster._core.definitions.job_definition import (
+        JobDefinition,
+    )
     from dagster._core.definitions.repository_definition.repository_definition import (
         RepositoryLoadData,
     )
@@ -941,13 +939,12 @@ class DagsterInstance(DynamicPartitionsStore):
 
     def create_run_for_pipeline(
         self,
-        pipeline_def: PipelineDefinition,
+        pipeline_def: "JobDefinition",
         execution_plan: Optional["ExecutionPlan"] = None,
         run_id: Optional[str] = None,
         run_config: Optional[Mapping[str, object]] = None,
-        mode: Optional[str] = None,
         solids_to_execute: Optional[AbstractSet[str]] = None,
-        status: Optional[str] = None,
+        status: Optional[Union[DagsterRunStatus, str]] = None,
         tags: Optional[Mapping[str, str]] = None,
         root_run_id: Optional[str] = None,
         parent_run_id: Optional[str] = None,
@@ -962,7 +959,7 @@ class DagsterInstance(DynamicPartitionsStore):
         from dagster._core.execution.plan.plan import ExecutionPlan
         from dagster._core.snap import snapshot_from_execution_plan
 
-        check.inst_param(pipeline_def, "pipeline_def", PipelineDefinition)
+        check.inst_param(pipeline_def, "pipeline_def", JobDefinition)
         check.opt_inst_param(execution_plan, "execution_plan", ExecutionPlan)
 
         # note that solids_to_execute is required to execute the solid subset, which is the
@@ -974,23 +971,8 @@ class DagsterInstance(DynamicPartitionsStore):
         check.opt_list_param(solid_selection, "solid_selection", of_type=str)
         check.opt_set_param(asset_selection, "asset_selection", of_type=AssetKey)
 
-        if solids_to_execute:
-            if isinstance(pipeline_def, PipelineSubsetDefinition):
-                # for the case when pipeline_def is created by IPipeline or ExternalPipeline
-                check.invariant(
-                    solids_to_execute == pipeline_def.nodes_to_execute,
-                    "Cannot create a PipelineRun from pipeline subset {pipeline_solids_to_execute} "
-                    "that conflicts with solids_to_execute arg {solids_to_execute}".format(
-                        pipeline_solids_to_execute=str_format_list(pipeline_def.nodes_to_execute),
-                        solids_to_execute=str_format_list(solids_to_execute),
-                    ),
-                )
-            else:
-                # for cases when `create_run_for_pipeline` is directly called
-                pipeline_def = pipeline_def.get_pipeline_subset_def(
-                    nodes_to_execute=solids_to_execute
-                )
-        if isinstance(pipeline_def, JobDefinition) and (asset_selection or solid_selection):
+        # solids_to_execute never provided
+        if asset_selection or solid_selection:
             # for cases when `create_run_for_pipeline` is directly called
             pipeline_def = pipeline_def.get_job_def_for_subset_selection(
                 asset_selection=asset_selection,
@@ -1005,7 +987,6 @@ class DagsterInstance(DynamicPartitionsStore):
             execution_plan = create_execution_plan(
                 pipeline=InMemoryPipeline(pipeline_def),
                 run_config=run_config,
-                mode=mode,
                 instance_ref=self.get_ref() if self.is_persistent else None,
                 tags=tags,
                 repository_load_data=repository_load_data,
@@ -1015,7 +996,6 @@ class DagsterInstance(DynamicPartitionsStore):
             pipeline_name=pipeline_def.name,
             run_id=run_id,
             run_config=run_config,
-            mode=check.opt_str_param(mode, "mode", default=pipeline_def.get_default_mode_name()),
             solid_selection=solid_selection,
             asset_selection=asset_selection,
             solids_to_execute=solids_to_execute,
@@ -1039,7 +1019,6 @@ class DagsterInstance(DynamicPartitionsStore):
         pipeline_name: str,
         run_id: str,
         run_config: Optional[Mapping[str, object]],
-        mode: Optional[str],
         solids_to_execute: Optional[AbstractSet[str]],
         step_keys_to_execute: Optional[Sequence[str]],
         status: Optional[DagsterRunStatus],
@@ -1089,7 +1068,6 @@ class DagsterInstance(DynamicPartitionsStore):
             pipeline_name=pipeline_name,
             run_id=run_id,
             run_config=run_config,
-            mode=mode,
             asset_selection=asset_selection,
             solid_selection=solid_selection,
             solids_to_execute=solids_to_execute,
@@ -1239,7 +1217,6 @@ class DagsterInstance(DynamicPartitionsStore):
         pipeline_name: str,
         run_id: Optional[str],
         run_config: Optional[Mapping[str, object]],
-        mode: Optional[str],
         status: Optional[DagsterRunStatus],
         tags: Optional[Mapping[str, Any]],
         root_run_id: Optional[str],
@@ -1263,7 +1240,6 @@ class DagsterInstance(DynamicPartitionsStore):
             run_id, "run_id"
         )  # will be assigned to make_new_run_id() lower in callstack
         check.opt_mapping_param(run_config, "run_config", key_type=str)
-        check.opt_str_param(mode, "mode")
 
         check.opt_inst_param(status, "status", DagsterRunStatus)
         check.opt_mapping_param(tags, "tags", key_type=str)
@@ -1357,7 +1333,6 @@ class DagsterInstance(DynamicPartitionsStore):
             pipeline_name=pipeline_name,
             run_id=run_id,  # type: ignore  # (possible none)
             run_config=run_config,
-            mode=mode,
             asset_selection=asset_selection,
             solid_selection=solid_selection,
             solids_to_execute=solids_to_execute,
@@ -1389,7 +1364,6 @@ class DagsterInstance(DynamicPartitionsStore):
         strategy: "ReexecutionStrategy",
         extra_tags: Optional[Mapping[str, Any]] = None,
         run_config: Optional[Mapping[str, Any]] = None,
-        mode: Optional[str] = None,
         use_parent_run_tags: bool = False,
     ) -> DagsterRun:
         from dagster._core.execution.plan.resume_retry import (
@@ -1404,7 +1378,6 @@ class DagsterInstance(DynamicPartitionsStore):
         check.inst_param(strategy, "strategy", ReexecutionStrategy)
         check.opt_mapping_param(extra_tags, "extra_tags", key_type=str)
         check.opt_mapping_param(run_config, "run_config", key_type=str)
-        check.opt_str_param(mode, "mode")
 
         check.bool_param(use_parent_run_tags, "use_parent_run_tags")
 
@@ -1422,7 +1395,6 @@ class DagsterInstance(DynamicPartitionsStore):
             },
         )
 
-        mode = cast(str, mode if mode is not None else parent_run.mode)
         run_config = run_config if run_config is not None else parent_run.run_config
 
         if strategy == ReexecutionStrategy.FROM_FAILURE:
@@ -1448,7 +1420,6 @@ class DagsterInstance(DynamicPartitionsStore):
         external_execution_plan = code_location.get_external_execution_plan(
             external_pipeline,
             run_config,
-            mode=mode,
             step_keys_to_execute=step_keys_to_execute,
             known_state=known_state,
             instance=self,
@@ -1458,7 +1429,6 @@ class DagsterInstance(DynamicPartitionsStore):
             pipeline_name=parent_run.pipeline_name,
             run_id=None,
             run_config=run_config,
-            mode=mode,
             solids_to_execute=parent_run.solids_to_execute,
             step_keys_to_execute=step_keys_to_execute,
             status=DagsterRunStatus.NOT_STARTED,
@@ -1479,7 +1449,6 @@ class DagsterInstance(DynamicPartitionsStore):
         pipeline_name: str,
         run_id: str,
         run_config: Optional[Mapping[str, object]],
-        mode: Optional[str],
         solids_to_execute: Optional[AbstractSet[str]],
         step_keys_to_execute: Optional[Sequence[str]],
         tags: Mapping[str, str],
@@ -1506,7 +1475,6 @@ class DagsterInstance(DynamicPartitionsStore):
             pipeline_name=pipeline_name,
             run_id=run_id,
             run_config=run_config,
-            mode=mode,
             solid_selection=solid_selection,
             solids_to_execute=solids_to_execute,
             step_keys_to_execute=step_keys_to_execute,

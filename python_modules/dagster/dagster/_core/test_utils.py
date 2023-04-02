@@ -48,7 +48,6 @@ from dagster._core.storage.pipeline_run import DagsterRun, DagsterRunStatus, Run
 from dagster._core.types.loadable_target_origin import LoadableTargetOrigin
 from dagster._core.workspace.context import WorkspaceProcessContext, WorkspaceRequestContext
 from dagster._core.workspace.load_target import WorkspaceLoadTarget
-from dagster._legacy import ModeDefinition
 from dagster._serdes import ConfigurableClass
 from dagster._serdes.config_class import ConfigurableClassData
 from dagster._seven.compat.pendulum import create_pendulum_time, mock_pendulum_timezone
@@ -133,7 +132,6 @@ def create_run_for_test(
     pipeline_name: str = TEST_PIPELINE_NAME,
     run_id=None,
     run_config=None,
-    mode=None,
     solids_to_execute=None,
     step_keys_to_execute=None,
     status=None,
@@ -152,7 +150,6 @@ def create_run_for_test(
         pipeline_name=pipeline_name,
         run_id=run_id,
         run_config=run_config,
-        mode=mode,
         solids_to_execute=solids_to_execute,
         step_keys_to_execute=step_keys_to_execute,
         status=status,
@@ -174,7 +171,6 @@ def register_managed_run_for_test(
     pipeline_name=TEST_PIPELINE_NAME,
     run_id=None,
     run_config=None,
-    mode=None,
     solids_to_execute=None,
     step_keys_to_execute=None,
     tags=None,
@@ -188,7 +184,6 @@ def register_managed_run_for_test(
         pipeline_name,
         run_id,
         run_config,
-        mode,
         solids_to_execute,
         step_keys_to_execute,
         tags,
@@ -531,7 +526,6 @@ def remove_none_recursively(obj: T) -> T:
         return obj
 
 
-default_mode_def_for_test = ModeDefinition(resource_defs={"io_manager": fs_io_manager})
 default_resources_for_test = {"io_manager": fs_io_manager}
 
 
