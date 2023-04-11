@@ -1,18 +1,21 @@
 import pickle
 from contextlib import contextmanager
-from typing import Union
+from typing import Any, Union
 
 from dagster import (
-    Field,
     InputContext,
     IOManager,
     OutputContext,
-    StringSource,
+    ResourceDependency,
     _check as check,
     io_manager,
 )
+from dagster._config.structured_config import ConfigurableIOManager
 from dagster._utils import PICKLE_PROTOCOL
+from dagster._utils.cached_method import cached_method
+from pydantic import Field
 
+from dagster_azure.adls2.resources import ADLS2Resource
 from dagster_azure.adls2.utils import ResourceNotFoundError
 
 _LEASE_DURATION = 60  # One minute
@@ -121,11 +124,33 @@ class PickledObjectADLS2IOManager(IOManager):
             file.upload_data(pickled_obj, lease=lease, overwrite=True)
 
 
+class PickledObjectADLS2IOManagerResource(ConfigurableIOManager):
+    adls2: ResourceDependency[ADLS2Resource]
+    adls2_file_system: str = Field(description="ADLS Gen2 file system name.")
+    adls2_prefix: str = Field(
+        default="dagster", description="ADLS Gen2 file system prefix to write to."
+    )
+
+    @property
+    @cached_method
+    def _internal_io_manager(self) -> PickledObjectADLS2IOManager:
+        return PickledObjectADLS2IOManager(
+            self.adls2_file_system,
+            self.adls2.adls2_client,
+            self.adls2.blob_client,
+            self.adls2.lease_client_constructor,
+            self.adls2_prefix,
+        )
+
+    def load_input(self, context: "InputContext") -> Any:
+        return self._internal_io_manager.load_input(context)
+
+    def handle_output(self, context: "OutputContext", obj: Any) -> None:
+        self._internal_io_manager.handle_output(context, obj)
+
+
 @io_manager(
-    config_schema={
-        "adls2_file_system": Field(StringSource, description="ADLS Gen2 file system name"),
-        "adls2_prefix": Field(StringSource, is_required=False, default_value="dagster"),
-    },
+    config_schema=PickledObjectADLS2IOManagerResource.to_config_schema(),
     required_resource_keys={"adls2"},
 )
 def adls2_pickle_io_manager(init_context):
