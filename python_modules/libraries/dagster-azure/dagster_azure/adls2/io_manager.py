@@ -10,7 +10,7 @@ from dagster import (
     _check as check,
     io_manager,
 )
-from dagster._config.structured_config import ConfigurableIOManager
+from dagster._config.pythonic_config import ConfigurableIOManager
 from dagster._utils import PICKLE_PROTOCOL
 from dagster._utils.cached_method import cached_method
 from pydantic import Field
