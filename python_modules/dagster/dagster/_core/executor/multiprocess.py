@@ -184,8 +184,10 @@ class MultiprocessExecutor(Executor):
 
         with time_execution_scope() as timer_result:
             with ActiveExecution(
+                plan_context.instance,
                 execution_plan,
                 retry_mode=self.retries,
+                run_id=plan_context.run_id,
                 max_concurrent=limit,
                 tag_concurrency_limits=tag_concurrency_limits,
             ) as active_execution:
@@ -212,6 +214,7 @@ class MultiprocessExecutor(Executor):
                     while not stopping:
                         steps = active_execution.get_steps_to_execute(
                             limit=(limit - len(active_iters)),
+                            register_steps=True,
                         )
 
                         if not steps:

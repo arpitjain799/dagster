@@ -108,10 +108,12 @@ class StepDelegatingExecutor(Executor):
         )
 
         with ActiveExecution(
+            plan_context.instance,
             execution_plan,
             retry_mode=self.retries,
             max_concurrent=self._max_concurrent,
             tag_concurrency_limits=self._tag_concurrency_limits,
+            run_id=plan_context.run_id,
         ) as active_execution:
             running_steps: Dict[str, ExecutionStep] = {}
 
