@@ -40,12 +40,6 @@ export type SingleAssetQuery = {
             timestamp: string;
             runId: string;
           }>;
-          freshnessPolicy: {
-            __typename: 'FreshnessPolicy';
-            maximumLagMinutes: number;
-            cronSchedule: string | null;
-            cronScheduleTimezone: string | null;
-          } | null;
           freshnessInfo: {
             __typename: 'AssetFreshnessInfo';
             currentMinutesLate: number | null;

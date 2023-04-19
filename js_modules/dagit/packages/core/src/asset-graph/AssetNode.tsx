@@ -448,14 +448,11 @@ export const ASSET_NODE_LIVE_FRAGMENT = gql`
     assetMaterializations(limit: 1) {
       ...AssetNodeLiveMaterialization
     }
-    freshnessPolicy {
-      ...AssetNodeLiveFreshnessPolicy
+    assetObservations(limit: 1) {
+      ...AssetNodeLiveObservation
     }
     freshnessInfo {
       ...AssetNodeLiveFreshnessInfo
-    }
-    assetObservations(limit: 1) {
-      ...AssetNodeLiveObservation
     }
     staleStatus
     staleCauses {
@@ -474,12 +471,6 @@ export const ASSET_NODE_LIVE_FRAGMENT = gql`
       numPartitions
       numFailed
     }
-  }
-
-  fragment AssetNodeLiveFreshnessPolicy on FreshnessPolicy {
-    maximumLagMinutes
-    cronSchedule
-    cronScheduleTimezone
   }
 
   fragment AssetNodeLiveFreshnessInfo on AssetFreshnessInfo {
