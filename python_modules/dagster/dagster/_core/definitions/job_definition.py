@@ -405,8 +405,10 @@ class JobDefinition(PipelineDefinition):
             run_config = (
                 run_config
                 if run_config
-                else self.partitioned_config.get_run_config_for_partition_key(
-                    partition_key, instance
+                else convert_config_input(
+                    self.partitioned_config.get_run_config_for_partition_key(
+                        partition_key, instance
+                    )
                 )
             )
             merged_tags.update(
@@ -414,7 +416,6 @@ class JobDefinition(PipelineDefinition):
                     partition_key, instance, job_name=self.name
                 )
             )
-
         return core_execute_in_process(
             ephemeral_pipeline=ephemeral_job,
             run_config=run_config,
