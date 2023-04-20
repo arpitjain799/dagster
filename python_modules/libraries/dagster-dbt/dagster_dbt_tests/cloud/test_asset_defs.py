@@ -1,6 +1,6 @@
 import json
 from copy import deepcopy
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import pytest
 import responses
@@ -18,11 +18,12 @@ from dagster import (
 from dagster._core.test_utils import instance_for_test
 from dagster_dbt import (
     DagsterDbtCloudJobInvariantViolationError,
+    DbtCloudClientResource,
     dbt_cloud_resource,
     load_assets_from_dbt_cloud_job,
 )
 from dagster_dbt.cloud.asset_defs import DAGSTER_DBT_COMPILE_RUN_ID_ENV_VAR
-from dagster_dbt.cloud.resources import DbtCloudResource
+from dagster_dbt.cloud.resources import DbtCloudClient
 
 from ..utils import assert_assets_match_project
 from .utils import sample_get_environment_variables
@@ -40,14 +41,19 @@ with open(file_relative_path(__file__, "../sample_run_results.json"), "r", encod
     RUN_RESULTS_JSON = json.load(f)
 
 
-@pytest.fixture(name="dbt_cloud")
-def dbt_cloud_fixture():
-    yield dbt_cloud_resource.configured(
-        {
-            "auth_token": DBT_CLOUD_API_TOKEN,
-            "account_id": DBT_CLOUD_ACCOUNT_ID,
-        }
-    )
+@pytest.fixture(name="dbt_cloud", params=["pythonic", "legacy"])
+def dbt_cloud_fixture(request) -> Any:
+    if request.param == "pythonic":
+        yield DbtCloudClientResource(
+            auth_token=DBT_CLOUD_API_TOKEN, account_id=DBT_CLOUD_ACCOUNT_ID
+        )
+    else:
+        yield dbt_cloud_resource.configured(
+            {
+                "auth_token": DBT_CLOUD_API_TOKEN,
+                "account_id": DBT_CLOUD_ACCOUNT_ID,
+            }
+        )
 
 
 @pytest.fixture(name="dbt_cloud_service")
@@ -63,7 +69,7 @@ def dbt_cloud_service_fixture():
 
 
 def _add_dbt_cloud_job_responses(
-    dbt_cloud_service: DbtCloudResource,
+    dbt_cloud_service: DbtCloudClient,
     dbt_commands: List[str],
     run_results_json: Optional[dict] = None,
 ):
@@ -169,7 +175,7 @@ def test_load_assets_from_dbt_cloud_job(
     )
 
     mock_run_job_and_poll = mocker.patch(
-        "dagster_dbt.cloud.resources.DbtCloudResource.run_job_and_poll",
+        "dagster_dbt.cloud.resources.DbtCloudClient.run_job_and_poll",
         wraps=dbt_cloud_cacheable_assets._dbt_cloud.run_job_and_poll,  # noqa: SLF001
     )
 
@@ -284,7 +290,7 @@ def test_load_assets_from_cached_compile_run(
     )
 
     mock_run_job_and_poll = mocker.patch(
-        "dagster_dbt.cloud.resources.DbtCloudResource.run_job_and_poll",
+        "dagster_dbt.cloud.resources.DbtCloudClient.run_job_and_poll",
         wraps=dbt_cloud_cacheable_assets._dbt_cloud.run_job_and_poll,  # noqa: SLF001
     )
 
@@ -505,7 +511,7 @@ def test_partitions(mocker, dbt_cloud, dbt_cloud_service):
     )
 
     mock_run_job_and_poll = mocker.patch(
-        "dagster_dbt.cloud.resources.DbtCloudResource.run_job_and_poll",
+        "dagster_dbt.cloud.resources.DbtCloudClient.run_job_and_poll",
         wraps=dbt_cloud_cacheable_assets._dbt_cloud.run_job_and_poll,  # noqa: SLF001
     )
 
@@ -601,7 +607,7 @@ def test_subsetting(
     )
 
     mock_run_job_and_poll = mocker.patch(
-        "dagster_dbt.cloud.resources.DbtCloudResource.run_job_and_poll",
+        "dagster_dbt.cloud.resources.DbtCloudClient.run_job_and_poll",
         wraps=dbt_cloud_cacheable_assets._dbt_cloud.run_job_and_poll,  # noqa: SLF001
     )
 
