@@ -20,7 +20,7 @@ from typing import (
 import dagster._check as check
 from dagster._annotations import experimental, public
 from dagster._core.definitions.asset_selection import AssetSelection
-from dagster._core.definitions.assets import AssetsDefinition
+from dagster._core.definitions.assets import AssetsDefinition, SourceAsset
 from dagster._core.definitions.partition import PartitionsDefinition
 from dagster._core.definitions.resource_annotation import get_resource_args
 from dagster._core.definitions.resource_definition import ResourceDefinition
@@ -247,13 +247,20 @@ class MultiAssetSensorEvaluationContext(SensorEvaluationContext):
             self._monitored_asset_keys = monitored_assets
 
         self._assets_by_key: Dict[AssetKey, Optional[AssetsDefinition]] = {}
+        self._source_assets_by_key: Dict[AssetKey, Optional[SourceAsset]] = {}
         for asset_key in self._monitored_asset_keys:
             assets_def = self._repository_def.assets_defs_by_key.get(asset_key)
             self._assets_by_key[asset_key] = assets_def
 
+            source_asset_def = self._repository_def.source_assets_by_key.get(asset_key)
+            self._source_assets_by_key[asset_key] = source_asset_def
+
         self._partitions_def_by_asset_key = {
             asset_key: asset_def.partitions_def
-            for asset_key, asset_def in self._assets_by_key.items()
+            for asset_key, asset_def in {
+                **self._assets_by_key,
+                **self._source_assets_by_key,
+            }.items()
             if asset_def is not None
         }
 

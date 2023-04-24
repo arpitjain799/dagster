@@ -21,6 +21,7 @@ from dagster import (
     Output,
     PartitionKeyRange,
     PartitionMapping,
+    SourceAsset,
     PartitionsDefinition,
     RunConfig,
     RunRequest,
@@ -321,6 +322,50 @@ def test_multi_asset_sensor_invocation_resources() -> None:
             resources={"my_resource": MyResource(a_str="bar")},
         )
         assert cast(RunRequest, a_and_b_sensor(ctx)).run_config == {"foo": "bar"}
+
+
+def test_multi_asset_sensor_with_source_assets() -> None:
+    # upstream_asset1 exists in another repository
+    @asset(partitions_def=DailyPartitionsDefinition(start_date="2023-03-01"))
+    def upstream_asset1():
+        ...
+
+    upstream_asset1_source = SourceAsset(
+        key=upstream_asset1.key,
+        partitions_def=DailyPartitionsDefinition(start_date="2023-03-01"),
+    )
+
+    @asset()
+    def downstream_asset(upstream_asset1):
+        ...
+
+    @multi_asset_sensor(
+        monitored_assets=[
+            upstream_asset1.key,
+        ],
+        job=define_asset_job("foo", selection=[downstream_asset]),
+    )
+    def my_sensor(context):
+        for partition, record in context.latest_materialization_records_by_partition(
+            AssetKey("upstream_asset1")
+        ).items():
+            context.advance_cursor({upstream_asset1.key: record})
+            yield RunRequest(partition_key=partition)
+
+    @repository
+    def my_repo():
+        return [upstream_asset1_source, downstream_asset, my_sensor]
+
+    with instance_for_test() as instance:
+        materialize([upstream_asset1], instance=instance, partition_key="2023-03-01")
+        ctx = build_multi_asset_sensor_context(
+            monitored_assets=[AssetKey("upstream_asset1")],
+            instance=instance,
+            repository_def=my_repo,
+        )
+        run_requests = list(my_sensor(ctx))
+        assert len(run_requests) == 1
+        assert run_requests[0].partition_key == "2023-03-01"
 
 
 def test_freshness_policy_sensor_invocation_resources() -> None:
