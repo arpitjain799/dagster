@@ -40,15 +40,15 @@ export type SingleAssetQuery = {
             timestamp: string;
             runId: string;
           }>;
-          freshnessInfo: {
-            __typename: 'AssetFreshnessInfo';
-            currentMinutesLate: number | null;
-          } | null;
           assetObservations: Array<{
             __typename: 'ObservationEvent';
             timestamp: string;
             runId: string;
           }>;
+          freshnessInfo: {
+            __typename: 'AssetFreshnessInfo';
+            currentMinutesLate: number | null;
+          } | null;
           staleCauses: Array<{
             __typename: 'StaleCause';
             reason: string;

@@ -98,7 +98,7 @@ export const SingleAssetQueryMaterializedWithLatestRun: MockedResponse<SingleAss
               __typename: 'MaterializationEvent',
             },
           ],
-          freshnessPolicy: null,
+
           freshnessInfo: null,
           assetObservations: [
             {
@@ -179,12 +179,6 @@ export const SingleAssetQueryMaterializedStaleAndLate: MockedResponse<SingleAsse
               __typename: 'MaterializationEvent',
             },
           ],
-          freshnessPolicy: {
-            maximumLagMinutes: 2,
-            cronSchedule: null,
-            cronScheduleTimezone: null,
-            __typename: 'FreshnessPolicy',
-          },
           freshnessInfo: {
             currentMinutesLate: 21657.2618512,
             __typename: 'AssetFreshnessInfo',
@@ -267,7 +261,7 @@ export const SingleAssetQueryLastRunFailed: MockedResponse<SingleAssetQuery> = {
               __typename: 'MaterializationEvent',
             },
           ],
-          freshnessPolicy: null,
+
           freshnessInfo: null,
           assetObservations: [],
           staleStatus: StaleStatus.MISSING,
@@ -348,6 +342,12 @@ export const AssetCatalogTableMockAssets: Extract<
       id: 'test.py.repo.["late_asset"]',
       groupName: 'GROUP2',
       partitionDefinition: null,
+      freshnessPolicy: {
+        maximumLagMinutes: 2,
+        cronSchedule: null,
+        cronScheduleTimezone: null,
+        __typename: 'FreshnessPolicy',
+      },
       hasMaterializePermission: true,
       description: null,
       repository,
