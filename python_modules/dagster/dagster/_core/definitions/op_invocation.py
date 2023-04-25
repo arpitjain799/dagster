@@ -13,6 +13,7 @@ from typing import (
 )
 
 import dagster._check as check
+from dagster._config.field_utils import config_dictionary_from_values
 from dagster._core.decorator_utils import get_function_params
 from dagster._core.errors import (
     DagsterInvalidInvocationError,
@@ -158,7 +159,7 @@ def op_invocation_result(
         from dagster._config.pythonic_config import Config
 
         context = (context or build_op_context()).replace_config(
-            config_input._as_config_dict()  # noqa: SLF001
+            config_dictionary_from_values(config_input._as_config_dict(), config_input.to_config_schema().as_field())  # noqa: SLF001
             if isinstance(config_input, Config)
             else config_input
         )
