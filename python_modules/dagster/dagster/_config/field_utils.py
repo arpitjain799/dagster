@@ -464,7 +464,7 @@ def _config_dictionary_from_values_inner(obj: Any):
     from dagster._config.pythonic_config import Config
 
     if isinstance(obj, dict):
-        return {k: _config_dictionary_from_values_inner(v) for k, v in obj.items() if v is not None}
+        return {k: _config_dictionary_from_values_inner(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [_config_dictionary_from_values_inner(v) for v in obj]
     elif isinstance(obj, EnvVar):
