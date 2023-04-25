@@ -160,8 +160,8 @@ def op_invocation_result(
 
         context = (context or build_op_context()).replace_config(
             config_dictionary_from_values(
-                config_input._as_config_dict(),
-                config_input.to_config_schema().as_field(),  # noqa: SLF001
+                config_input._as_config_dict(),  # noqa: SLF001
+                config_input.to_config_schema().as_field(),
             )
             if isinstance(config_input, Config)
             else config_input
